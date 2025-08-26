@@ -20,39 +20,78 @@ def enviar_email(email_user, email_pass, para, assunto, corpo_html):
         server.login(email_user, email_pass)
         server.sendmail(email_user, [para], msg.as_string())
 
-# Interface web
-st.title("📧 Envio Automático de E-mails")
+# ================================
+# Configurações de Layout
+# ================================
+st.set_page_config(page_title="Envio Automático de E-mails", layout="wide")
 
+# Logo da ACEL centralizada
+st.markdown(
+    """
+    <div style="text-align:center;">
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LOGO ACEL.jpg" width="200">
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# Título estilizado
+st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>📧 Envio Automático de E-mails</h2>", unsafe_allow_html=True)
+
+# ================================
+# Entrada de dados
+# ================================
 email_user = st.text_input("Seu e-mail (Skymail)", "gabryell@acelnet.com.br")
 email_pass = st.text_input("Sua senha", type="password")
 
 uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
 assunto = st.text_input("Assunto do e-mail", "Comunicado importante - {{responsavel}}")
-corpo = st.text_area("Corpo do e-mail (HTML permitido)", 
+
+# Texto simples convertido em HTML
+st.subheader("Corpo do e-mail (digite em texto simples)")
+texto_puro = st.text_area("Digite aqui:", 
 """
-<p>Olá {{responsavel}},</p>
-<p>Segue comunicado referente aos nossos serviços.</p>
-<p>Atenciosamente,<br>Equipe ACEL</p>
-""", height=200)
+Bom dia, Prezados(as),
+
+A Acel tem como prioridade estar sempre ao lado de seus clientes, adotando as melhores práticas
+para simplificar a rotina e assegurar segurança em todas as etapas dos processos contábeis e fiscais.
+
+Atenciosamente,
+Equipe ACEL
+""", height=250)
+
+def converter_para_html(texto):
+    linhas = texto.split("\n")
+    html = ""
+    for linha in linhas:
+        linha = linha.strip()
+        if linha:
+            html += f"<p>{linha}</p>\n"
+    return html
+
+corpo = converter_para_html(texto_puro)
+
+st.subheader("📌 Pré-visualização em HTML")
+st.code(corpo, language="html")
 
 pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
 
 modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
 
+# ================================
+# Processamento da planilha
+# ================================
 if uploaded_file is not None:
-    # Carrega planilha
     if uploaded_file.name.endswith(".xlsx"):
         df = pd.read_excel(uploaded_file, header=0)
     else:
         df = pd.read_csv(uploaded_file, header=0)
 
-    # 🔑 Normaliza os nomes das colunas
     df.columns = df.columns.str.strip().str.upper()
 
     st.subheader("Prévia dos dados carregados")
     st.write(df.head())
 
-    # preview dos primeiros e-mails
     if "E-MAIL" in df.columns and "RESPONSAVEL" in df.columns:
         st.subheader("📌 Preview dos primeiros 5 e-mails")
         preview = []
@@ -68,7 +107,6 @@ if uploaded_file is not None:
                     preview.append({"Para": destino, "Assunto": assunto_p, "Corpo": corpo_p})
         st.table(preview)
 
-        # Botão para enviar
         if st.button("🚀 Enviar todos os e-mails"):
             enviados = 0
             for _, row in df.iterrows():
@@ -91,3 +129,16 @@ if uploaded_file is not None:
             st.success(f"Finalizado. Total enviados: {enviados}")
     else:
         st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
+
+# ================================
+# Rodapé
+# ================================
+st.markdown(
+    """
+    <hr>
+    <p style="text-align:center; font-size:11px; color:#888;">
+    Sistema elaborado por <b>GY SISTEMAS</b> - GABRYELL FELIX, YAGO SILVA
+    </p>
+    """,
+    unsafe_allow_html=True
+)
