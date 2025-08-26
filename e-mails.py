@@ -28,7 +28,7 @@ st.set_page_config(page_title="Envio Automático de E-mails", layout="wide")
 st.markdown(
     """
     <div style="text-align:center;">
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/ACEL-ASSINATURAS/main/logo.png" width="200">
+        <img src="https://github.com/gysistemasdev-web/E-MAILS-AUTOMATICO/blob/7d65ef74bd8aa33b461e015093402792c923d81d/LOGO%20ACEL.jpg" width="200">
     </div>
     """,
     unsafe_allow_html=True
@@ -173,3 +173,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
