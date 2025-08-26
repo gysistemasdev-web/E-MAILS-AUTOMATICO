@@ -76,12 +76,42 @@ with st.expander("ℹ️ Como usar o sistema"):
 # ASSINATURAS (catálogo)
 # ================================
 ASSINATURAS = {
-    # Adicione mais nomes aqui depois:
-    "Gabryell Felix": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/ACEL-ASSINATURAS/main/GABRYELL.png"
-             alt="Assinatura - Gabryell" width="450">
-    """.strip()
-    # "Leonardo Alves": """<img src="URL_DA_ASSINATURA_DO_LEONARDO" width="450">""",
+    "Leonardo": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/LEONARDO.png"
+             alt="Assinatura - Leonardo" width="450">
+    """,
+    "Erika": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/ERIKA%201.png"
+             alt="Assinatura - Erika" width="450">
+    """,
+    "Caroline": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/CAROLINE.png"
+             alt="Assinatura - Caroline" width="450">
+    """,
+    "Halline": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/HALLINE.jpg"
+             alt="Assinatura - Halline" width="450">
+    """,
+    "Marcio": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/MARCIO.png"
+             alt="Assinatura - Marcio" width="450">
+    """,
+    "Maria Alice": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/MARIA%20ALICE%20-%20DP.jpg"
+             alt="Assinatura - Maria Alice" width="450">
+    """,
+    "Ronaldo": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/RONALDO.png"
+             alt="Assinatura - Ronaldo" width="450">
+    """,
+    "Victor": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/VICTOR.jpg"
+             alt="Assinatura - Victor" width="450">
+    """,
+    "Robson": """
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/acel%20assinaturas.png"
+             alt="Assinatura - Robson" width="450">
+    """,
 }
 
 # Tabs: Mensagem / Assinaturas
@@ -221,3 +251,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
