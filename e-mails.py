@@ -1,5 +1,5 @@
 import pandas as pd
-import smtplib, time, re
+import smtplib, time, re, json, os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import streamlit as st
@@ -19,6 +19,58 @@ def enviar_email(email_user, email_pass, para, assunto, corpo_html):
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
         server.login(email_user, email_pass)
         server.sendmail(email_user, [para], msg.as_string())
+
+# ================================
+# LOGIN / REGISTRO
+# ================================
+USERS_FILE = "usuarios.json"
+
+def carregar_usuarios():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def salvar_usuarios(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f)
+
+usuarios = carregar_usuarios()
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "usuario" not in st.session_state:
+    st.session_state.usuario = None
+
+if not st.session_state.logged_in:
+    st.title("🔒 Login - Sistema de Envio ACEL")
+
+    escolha = st.radio("Selecione:", ["Login", "Registrar"])
+    email = st.text_input("E-mail corporativo")
+    senha = st.text_input("Senha", type="password")
+
+    if escolha == "Registrar":
+        if st.button("Criar conta"):
+            if not email.endswith("@acelnet.com.br"):
+                st.error("❌ Apenas e-mails @acelnet.com.br podem se registrar.")
+            elif email in usuarios:
+                st.error("❌ Usuário já existe.")
+            else:
+                usuarios[email] = senha
+                salvar_usuarios(usuarios)
+                st.success("✅ Conta criada com sucesso! Agora faça login.")
+
+    elif escolha == "Login":
+        if st.button("Entrar"):
+            if email in usuarios and usuarios[email] == senha:
+                st.session_state.logged_in = True
+                st.session_state.usuario = email
+                st.success(f"✅ Bem-vindo, {email}")
+                st.rerun()
+            else:
+                st.error("❌ E-mail ou senha inválidos.")
+
+    st.stop()
 
 # ================================
 # LAYOUT / TEMA
@@ -76,45 +128,20 @@ with st.expander("ℹ️ Como usar o sistema"):
 # ASSINATURAS (catálogo)
 # ================================
 ASSINATURAS = {
-    "Leonardo": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/LEONARDO.png"
-             alt="Assinatura - Leonardo" width="450">
-    """,
-    "Erika": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/ERIKA%201.png"
-             alt="Assinatura - Erika" width="450">
-    """,
-    "Caroline": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/CAROLINE.png"
-             alt="Assinatura - Caroline" width="450">
-    """,
-    "Halline": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/HALLINE.jpg"
-             alt="Assinatura - Halline" width="450">
-    """,
-    "Marcio": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/MARCIO.png"
-             alt="Assinatura - Marcio" width="450">
-    """,
-    "Maria Alice": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/MARIA%20ALICE%20-%20DP.jpg"
-             alt="Assinatura - Maria Alice" width="450">
-    """,
-    "Ronaldo": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/RONALDO.png"
-             alt="Assinatura - Ronaldo" width="450">
-    """,
-    "Victor": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/VICTOR.jpg"
-             alt="Assinatura - Victor" width="450">
-    """,
-    "Robson": """
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/b3d8ac4a483b53c9f7c61c982fc74e98afce1826/acel%20assinaturas.png"
-             alt="Assinatura - Robson" width="450">
-    """,
+    "Leonardo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LEONARDO.png" width="450">""",
+    "Erika": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/ERIKA%201.png" width="450">""",
+    "Caroline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/CAROLINE.png" width="450">""",
+    "Halline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/HALLINE.jpg" width="450">""",
+    "Marcio": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARCIO.png" width="450">""",
+    "Maria Alice": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARIA%20ALICE%20-%20DP.jpg" width="450">""",
+    "Ronaldo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/RONALDO.png" width="450">""",
+    "Victor": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/VICTOR.jpg" width="450">""",
+    "Robson": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/acel%20assinaturas.png" width="450">"""
 }
 
-# Tabs: Mensagem / Assinaturas
+# ================================
+# TABS: MENSAGEM / ASSINATURAS
+# ================================
 tab_msg, tab_ass = st.tabs(["📝 Mensagem", "🖋️ Assinaturas"])
 
 with tab_ass:
@@ -160,19 +187,13 @@ with tab_msg:
         for linha in linhas:
             linha = linha.strip()
             if linha:
-                # **negrito**
-                linha = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", linha)
-                # ##vermelho##
-                linha = re.sub(r"##(.*?)##", r"<span style='color:red;'>\1</span>", linha)
+                linha = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", linha)   # negrito
+                linha = re.sub(r"##(.*?)##", r"<span style='color:red;'>\1</span>", linha)  # vermelho
                 html += f"<p>{linha}</p>\n"
         return html
 
     corpo_base = converter_para_html(texto_puro)
-
-    # Assinatura no preview (se houver)
-    corpo_preview = corpo_base
-    if assinatura_html:
-        corpo_preview += "<hr>\n" + assinatura_html
+    corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
 
     st.subheader("📌 HTML gerado")
     st.code(corpo_preview, language="html")
@@ -183,9 +204,6 @@ with tab_msg:
     pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
     modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
 
-    # ================================
-    # Processamento da planilha + envio
-    # ================================
     if uploaded_file is not None:
         if uploaded_file.name.endswith(".xlsx"):
             df = pd.read_excel(uploaded_file, header=0)
@@ -193,7 +211,6 @@ with tab_msg:
             df = pd.read_csv(uploaded_file, header=0)
 
         df.columns = df.columns.str.strip().str.upper()
-
         st.subheader("Prévia dos dados carregados")
         st.write(df.head())
 
@@ -208,8 +225,7 @@ with tab_msg:
                     if "@" in e:
                         assunto_p = assunto.replace("{{responsavel}}", responsavel)
                         corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                        # anexa assinatura escolhida
-                        corpo_p = (corpo_p + "<hr>\n" + assinatura_html) if assinatura_html else corpo_p
+                        corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
                         destino = email_user if modo_teste else e
                         preview.append({"Para": destino, "Assunto": assunto_p, "Corpo": corpo_p})
             st.table(preview)
@@ -225,8 +241,7 @@ with tab_msg:
                             continue
                         assunto_p = assunto.replace("{{responsavel}}", responsavel)
                         corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                        if assinatura_html:
-                            corpo_p = corpo_p + "<hr>\n" + assinatura_html
+                        corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
                         destino = email_user if modo_teste else e
                         try:
                             enviar_email(email_user, email_pass, destino, assunto_p, corpo_p)
@@ -243,12 +258,12 @@ with tab_msg:
 # Rodapé
 # ================================
 st.markdown(
-    """
+    f"""
     <hr>
     <p style="text-align:center; font-size:11px; color:#888;">
-      Sistema elaborado por <b>GY SISTEMAS</b> - GABRYELL FELIX, YAGO SILVA
+      Sistema elaborado por <b>GY SISTEMAS</b> - GABRYELL FELIX, YAGO SILVA<br>
+      🔓 Usuário logado: {st.session_state.usuario}
     </p>
     """,
     unsafe_allow_html=True
 )
-
