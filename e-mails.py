@@ -120,8 +120,7 @@ with st.expander("ℹ️ Como usar o sistema"):
     - Preview mostra os 5 primeiros antes do disparo.
 
     ### 🔏 Assinaturas
-    - Vá na aba **Assinaturas**, escolha o nome, URL personalizada ou cole HTML.
-    - A assinatura selecionada é adicionada ao final do e-mail automaticamente.
+    - Sua assinatura é vinculada ao login e será adicionada automaticamente.
     """)
 
 # ================================
@@ -140,119 +139,116 @@ ASSINATURAS = {
 }
 
 # ================================
-# TABS: MENSAGEM / ASSINATURAS
+# ASSINATURA AUTOMÁTICA POR USUÁRIO
 # ================================
-tab_msg, tab_ass = st.tabs(["📝 Mensagem", "🖋️ Assinaturas"])
+ASSINATURA_USUARIO = {
+    "gabryell@acelnet.com.br": ASSINATURAS["Leonardo"],
+    "marcio@acelnet.com.br": ASSINATURAS["Marcio"],
+    "leonardo@acelnet.com.br": ASSINATURAS["Leonardo"],
+    "victor@acelnet.com.br": ASSINATURAS["Victor"],
+    "erika@acelnet.com.br": ASSINATURAS["Erika"],
+    "caroline@acelnet.com.br": ASSINATURAS["Caroline"],
+    "halline@acelnet.com.br": ASSINATURAS["Halline"],
+    "mariaalice@acelnet.com.br": ASSINATURAS["Maria Alice"],
+    "ronaldo@acelnet.com.br": ASSINATURAS["Ronaldo"],
+    "robson@acelnet.com.br": ASSINATURAS["Robson"]
+}
 
-with tab_ass:
-    st.markdown("#### Selecione a assinatura a incluir no fim do e-mail")
-    modo_ass = st.radio("Modo de assinatura", ["Sem assinatura", "Catálogo (por nome)", "URL personalizada (imagem)", "HTML manual"], index=1)
-    assinatura_html = ""
+assinatura_html = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
 
-    if modo_ass == "Catálogo (por nome)":
-        nome = st.selectbox("Escolha o nome", list(ASSINATURAS.keys()))
-        assinatura_html = ASSINATURAS.get(nome, "")
-    elif modo_ass == "URL personalizada (imagem)":
-        url_img = st.text_input("URL da imagem (https)", "https://...")
-        if url_img and url_img.startswith("http"):
-            assinatura_html = f'<img src="{url_img}" alt="Assinatura" width="450">'
-    elif modo_ass == "HTML manual":
-        assinatura_html = st.text_area("Cole seu HTML de assinatura", "<p>Minha assinatura</p>", height=160)
+# ================================
+# MENSAGEM / ENVIO
+# ================================
+email_user = st.text_input("Seu e-mail (Skymail)", st.session_state.usuario)
+email_pass = st.text_input("Sua senha", type="password")
 
-    st.markdown("**Prévia da assinatura**")
-    st.markdown(f"<div class='box'>{assinatura_html or '<i>(sem assinatura)</i>'}</div>", unsafe_allow_html=True)
+uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
+assunto = st.text_input("Assunto do e-mail", "Comunicado importante - {{responsavel}}")
 
-with tab_msg:
-    email_user = st.text_input("Seu e-mail (Skymail)", "gabryell@acelnet.com.br")
-    email_pass = st.text_input("Sua senha", type="password")
+st.subheader("Corpo do e-mail (digite em texto simples)")
+texto_puro = st.text_area("Digite aqui:",
+"""
+Bom dia, **Prezados(as)**,
 
-    uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
-    assunto = st.text_input("Assunto do e-mail", "Comunicado importante - {{responsavel}}")
+A Acel tem como prioridade ##estar sempre ao lado de seus clientes##, adotando as melhores práticas
+para simplificar a rotina e assegurar segurança em todas as etapas dos processos contábeis e fiscais.
 
-    st.subheader("Corpo do e-mail (digite em texto simples)")
-    texto_puro = st.text_area("Digite aqui:",
-    """
-    Bom dia, **Prezados(as)**,
+Atenciosamente,
+Equipe ACEL
+""", height=250)
 
-    A Acel tem como prioridade ##estar sempre ao lado de seus clientes##, adotando as melhores práticas
-    para simplificar a rotina e assegurar segurança em todas as etapas dos processos contábeis e fiscais.
+def converter_para_html(texto):
+    linhas = texto.split("\n")
+    html = ""
+    for linha in linhas:
+        linha = linha.strip()
+        if linha:
+            linha = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", linha)   # negrito
+            linha = re.sub(r"##(.*?)##", r"<span style='color:red;'>\1</span>", linha)  # vermelho
+            html += f"<p>{linha}</p>\n"
+    return html
 
-    Atenciosamente,
-    Equipe ACEL
-    """, height=250)
+corpo_base = converter_para_html(texto_puro)
+corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
 
-    def converter_para_html(texto):
-        linhas = texto.split("\n")
-        html = ""
-        for linha in linhas:
-            linha = linha.strip()
-            if linha:
-                linha = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", linha)   # negrito
-                linha = re.sub(r"##(.*?)##", r"<span style='color:red;'>\1</span>", linha)  # vermelho
-                html += f"<p>{linha}</p>\n"
-        return html
+st.subheader("📌 HTML gerado")
+st.code(corpo_preview, language="html")
 
-    corpo_base = converter_para_html(texto_puro)
-    corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
+st.subheader("🔎 Prévia formatada")
+st.markdown(f"<div class='box'>{corpo_preview}</div>", unsafe_allow_html=True)
 
-    st.subheader("📌 HTML gerado")
-    st.code(corpo_preview, language="html")
+pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
+modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
 
-    st.subheader("🔎 Prévia formatada")
-    st.markdown(f"<div class='box'>{corpo_preview}</div>", unsafe_allow_html=True)
+if uploaded_file is not None:
+    if uploaded_file.name.endswith(".xlsx"):
+        df = pd.read_excel(uploaded_file, header=0)
+    else:
+        df = pd.read_csv(uploaded_file, header=0)
 
-    pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
-    modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
+    df.columns = df.columns.str.strip().str.upper()
+    st.subheader("Prévia dos dados carregados")
+    st.write(df.head())
 
-    if uploaded_file is not None:
-        if uploaded_file.name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file, header=0)
-        else:
-            df = pd.read_csv(uploaded_file, header=0)
+    if "E-MAIL" in df.columns and "RESPONSAVEL" in df.columns:
+        st.subheader("📌 Preview dos primeiros 5 e-mails")
+        preview = []
+        for _, row in df.head(5).iterrows():
+            responsavel = str(row["RESPONSAVEL"])
+            emails = str(row["E-MAIL"]).replace(";", "-").split("-")
+            for e in emails:
+                e = e.strip()
+                if "@" in e:
+                    assunto_p = assunto.replace("{{responsavel}}", responsavel)
+                    corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
+                    corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
+                    destino = email_user if modo_teste else e
+                    preview.append({"Para": destino, "Assunto": assunto_p, "Corpo": corpo_p})
+        st.table(preview)
 
-        df.columns = df.columns.str.strip().str.upper()
-        st.subheader("Prévia dos dados carregados")
-        st.write(df.head())
-
-        if "E-MAIL" in df.columns and "RESPONSAVEL" in df.columns:
-            st.subheader("📌 Preview dos primeiros 5 e-mails")
-            preview = []
-            for _, row in df.head(5).iterrows():
+        if st.button("🚀 Enviar todos os e-mails"):
+            enviados = 0
+            for _, row in df.iterrows():
                 responsavel = str(row["RESPONSAVEL"])
                 emails = str(row["E-MAIL"]).replace(";", "-").split("-")
                 for e in emails:
                     e = e.strip()
-                    if "@" in e:
-                        assunto_p = assunto.replace("{{responsavel}}", responsavel)
-                        corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                        corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
-                        destino = email_user if modo_teste else e
-                        preview.append({"Para": destino, "Assunto": assunto_p, "Corpo": corpo_p})
-            st.table(preview)
-
-            if st.button("🚀 Enviar todos os e-mails"):
-                enviados = 0
-                for _, row in df.iterrows():
-                    responsavel = str(row["RESPONSAVEL"])
-                    emails = str(row["E-MAIL"]).replace(";", "-").split("-")
-                    for e in emails:
-                        e = e.strip()
-                        if "@" not in e:
-                            continue
-                        assunto_p = assunto.replace("{{responsavel}}", responsavel)
-                        corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                        corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
-                        destino = email_user if modo_teste else e
-                        try:
-                            enviar_email(email_user, email_pass, destino, assunto_p, corpo_p)
-                            enviados += 1
-                            st.write(f"✅ Enviado: {destino}")
-                            time.sleep(pausa)
-                        except Exception as ex:
-                            st.write(f"⚠️ Erro com {e}: {ex}")
-                st.success(f"Finalizado. Total enviados: {enviados}")
-        else:
-            st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
+                    if "@" not in e:
+                        continue
+                    assunto_p = assunto.replace("{{responsavel}}", responsavel)
+                    corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
+                    corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
+                    destino = email_user if modo_teste else e
+                    try:
+                        enviar_email(email_user, email_pass, destino, assunto_p, corpo_p)
+                        enviados += 1
+                        st.write(f"✅ Enviado: {destino}")
+                        time.sleep(pausa)
+                    except Exception as ex:
+                        st.write(f"⚠️ Erro com {e}: {ex}")
+            st.success(f"Finalizado. Total enviados: {enviados}")
+    else:
+        st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
 
 # ================================
 # PAINEL ADMINISTRATIVO (somente admins)
@@ -265,34 +261,4 @@ ADMINS = [
 ]
 
 if st.session_state.usuario in ADMINS:
-    st.markdown("## ⚙️ Painel Administrativo")
-
-    usuarios = carregar_usuarios()
-
-    # Mostrar tabela com e-mail e senha em texto puro
-    st.write("📋 Usuários cadastrados (com senha):")
-    data = [{"E-mail": u, "Senha": p} for u, p in usuarios.items()]
-    st.table(data)
-
-    excluir = st.selectbox("Selecione um usuário para excluir", [""] + list(usuarios.keys()))
-
-    if excluir and excluir != "":
-        if st.button("❌ Excluir usuário"):
-            usuarios.pop(excluir, None)
-            salvar_usuarios(usuarios)
-            st.success(f"Usuário {excluir} removido com sucesso!")
-            st.rerun()
-
-# ================================
-# Rodapé
-# ================================
-st.markdown(
-    f"""
-    <hr>
-    <p style="text-align:center; font-size:11px; color:#888;">
-      Sistema elaborado por <b>GY SISTEMAS</b> - GABRYELL FELIX, YAGO SILVA<br>
-      🔓 Usuário logado: {st.session_state.usuario}
-    </p>
-    """,
-    unsafe_allow_html=True
-)
+    st
