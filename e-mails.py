@@ -94,7 +94,7 @@ st.markdown(
 st.markdown(
     """
     <div style="text-align:center; margin-bottom:20px;">
-      <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/7d65ef74bd8aa33b461e015093402792c923d81d/LOGO%20ACEL.jpg" width="250">
+      <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LOGO%20ACEL.jpg" width="250">
     </div>
     """,
     unsafe_allow_html=True
@@ -253,6 +253,35 @@ with tab_msg:
                 st.success(f"Finalizado. Total enviados: {enviados}")
         else:
             st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
+
+# ================================
+# PAINEL ADMINISTRATIVO (somente admins)
+# ================================
+ADMINS = [
+    "gabryell@acelnet.com.br",
+    "marcio@acelnet.com.br",
+    "leonardo@acelnet.com.br",
+    "victor@acelnet.com.br"
+]
+
+if st.session_state.usuario in ADMINS:
+    st.markdown("## ⚙️ Painel Administrativo")
+
+    usuarios = carregar_usuarios()
+
+    # Mostrar tabela com e-mail e senha em texto puro
+    st.write("📋 Usuários cadastrados (com senha):")
+    data = [{"E-mail": u, "Senha": p} for u, p in usuarios.items()]
+    st.table(data)
+
+    excluir = st.selectbox("Selecione um usuário para excluir", [""] + list(usuarios.keys()))
+
+    if excluir and excluir != "":
+        if st.button("❌ Excluir usuário"):
+            usuarios.pop(excluir, None)
+            salvar_usuarios(usuarios)
+            st.success(f"Usuário {excluir} removido com sucesso!")
+            st.rerun()
 
 # ================================
 # Rodapé
