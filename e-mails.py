@@ -1,5 +1,5 @@
 import pandas as pd
-import smtplib, time
+import smtplib, time, re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import streamlit as st
@@ -15,7 +15,6 @@ def enviar_email(email_user, email_pass, para, assunto, corpo_html):
     msg["Subject"] = assunto
     msg.attach(MIMEText(corpo_html, "html"))
 
-    # 🔑 Conexão com SSL direto (porta 465)
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
         server.login(email_user, email_pass)
         server.sendmail(email_user, [para], msg.as_string())
@@ -29,7 +28,7 @@ st.set_page_config(page_title="Envio Automático de E-mails", layout="wide")
 st.markdown(
     """
     <div style="text-align:center;">
-        <img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LOGO ACEL.jpg" width="200">
+        <img src="https://raw.githubusercontent.com/gysistemasdev-web/ACEL-ASSINATURAS/main/logo.png" width="200">
     </div>
     """,
     unsafe_allow_html=True
@@ -37,6 +36,32 @@ st.markdown(
 
 # Título estilizado
 st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>📧 Envio Automático de E-mails</h2>", unsafe_allow_html=True)
+
+# ================================
+# Painel de Ajuda
+# ================================
+with st.expander("ℹ️ Como usar o sistema"):
+    st.markdown("""
+    ### 📝 Dicas de formatação do texto:
+    - Para **negrito**, use duas estrelas: `**assim**`
+    - Para texto em vermelho, use hashtags duplas: `##assim##`
+
+    ### 📂 Planilha
+    - A planilha deve ter duas colunas: **E-MAIL** e **RESPONSAVEL**.
+    - Você pode separar vários e-mails na mesma célula usando `;` ou `-`.
+
+    ### ✉️ Envio
+    - Ative o **Modo Teste** para enviar apenas para seu próprio e-mail.
+    - Desative para enviar para os endereços da planilha.
+    - Cada envio aparece no log do painel.
+
+    ### 📌 Pré-visualização
+    - O sistema mostra os 5 primeiros e-mails antes do envio.
+    - Você pode revisar antes de disparar.
+
+    ---
+    💡 **Dica extra:** sempre rode um teste com seu próprio e-mail antes de enviar para todos.
+    """)
 
 # ================================
 # Entrada de dados
@@ -51,9 +76,9 @@ assunto = st.text_input("Assunto do e-mail", "Comunicado importante - {{responsa
 st.subheader("Corpo do e-mail (digite em texto simples)")
 texto_puro = st.text_area("Digite aqui:", 
 """
-Bom dia, Prezados(as),
+Bom dia, **Prezados(as)**,
 
-A Acel tem como prioridade estar sempre ao lado de seus clientes, adotando as melhores práticas
+A Acel tem como prioridade ##estar sempre ao lado de seus clientes##, adotando as melhores práticas
 para simplificar a rotina e assegurar segurança em todas as etapas dos processos contábeis e fiscais.
 
 Atenciosamente,
@@ -66,16 +91,22 @@ def converter_para_html(texto):
     for linha in linhas:
         linha = linha.strip()
         if linha:
+            # Negrito (**texto**)
+            linha = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", linha)
+            # Texto vermelho (##texto##)
+            linha = re.sub(r"##(.*?)##", r"<span style='color:red;'>\1</span>", linha)
             html += f"<p>{linha}</p>\n"
     return html
 
 corpo = converter_para_html(texto_puro)
 
-st.subheader("📌 Pré-visualização em HTML")
+st.subheader("📌 HTML gerado")
 st.code(corpo, language="html")
 
-pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
+st.subheader("🔎 Prévia formatada")
+st.markdown(corpo, unsafe_allow_html=True)
 
+pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
 modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
 
 # ================================
