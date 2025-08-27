@@ -1,5 +1,5 @@
 import pandas as pd
-import smtplib, time, re, json, os
+import smtplib, time, re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import streamlit as st
@@ -10,67 +10,18 @@ import streamlit as st
 SMTP_HOST = "smtp.skymail.net.br"
 SMTP_PORT = 465   # SSL/TLS
 
-def enviar_email(email_user, email_pass, para, assunto, corpo_html):
+def enviar_email(email_user, email_pass, para, cc_list, assunto, corpo_html):
     msg = MIMEMultipart("alternative")
     msg["From"] = email_user
     msg["To"] = para
+    if cc_list:
+        msg["Cc"] = ", ".join(cc_list)
     msg["Subject"] = assunto
     msg.attach(MIMEText(corpo_html, "html"))
+
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
         server.login(email_user, email_pass)
-        server.sendmail(email_user, [para], msg.as_string())
-
-# ================================
-# LOGIN / REGISTRO
-# ================================
-USERS_FILE = "usuarios.json"
-
-def carregar_usuarios():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-def salvar_usuarios(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f)
-
-usuarios = carregar_usuarios()
-
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "usuario" not in st.session_state:
-    st.session_state.usuario = None
-
-if not st.session_state.logged_in:
-    st.title("🔒 Login - Sistema de Envio ACEL")
-
-    escolha = st.radio("Selecione:", ["Login", "Registrar"])
-    email = st.text_input("E-mail corporativo")
-    senha = st.text_input("Senha", type="password")
-
-    if escolha == "Registrar":
-        if st.button("Criar conta"):
-            if not email.endswith("@acelnet.com.br"):
-                st.error("❌ Apenas e-mails @acelnet.com.br podem se registrar.")
-            elif email in usuarios:
-                st.error("❌ Usuário já existe.")
-            else:
-                usuarios[email] = senha
-                salvar_usuarios(usuarios)
-                st.success("✅ Conta criada com sucesso! Agora faça login.")
-
-    elif escolha == "Login":
-        if st.button("Entrar"):
-            if email in usuarios and usuarios[email] == senha:
-                st.session_state.logged_in = True
-                st.session_state.usuario = email
-                st.success(f"✅ Bem-vindo, {email}")
-                st.rerun()
-            else:
-                st.error("❌ E-mail ou senha inválidos.")
-
-    st.stop()
+        server.sendmail(email_user, [para] + cc_list, msg.as_string())
 
 # ================================
 # LAYOUT / TEMA
@@ -111,55 +62,20 @@ with st.expander("ℹ️ Como usar o sistema"):
     - vermelho → escreva entre duas hashtags duplas: `##assim##`
 
     ### 📂 Planilha
-    - Colunas exigidas: **E-MAIL** e **RESPONSAVEL** (maiúsculas; o app normaliza).
-    - Vários e-mails na mesma célula: separe por `;` ou `-`.
+    - Colunas exigidas: **E-MAIL** e **RESPONSAVEL**
+    - Vários e-mails na mesma célula: separe por `;` ou `-`
+    - O primeiro será o "Para", os outros irão em "Cc"
 
     ### ✉️ Envio
-    - **Modo Teste**: envia só para seu e-mail (seguro para validar).
-    - Desative para enviar aos destinatários da planilha.
-    - Preview mostra os 5 primeiros antes do disparo.
-
-    ### 🔏 Assinaturas
-    - Sua assinatura é vinculada ao login e será adicionada automaticamente.
+    - **Modo Teste**: envia só para seu e-mail (seguro para validar)
+    - Desative para enviar aos destinatários reais
+    - Preview mostra os 5 primeiros antes do disparo
     """)
-
-# ================================
-# ASSINATURAS (catálogo)
-# ================================
-ASSINATURAS = {
-    "Leonardo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LEONARDO.png" width="450">""",
-    "Erika": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/ERIKA%201.png" width="450">""",
-    "Caroline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/CAROLINE.png" width="450">""",
-    "Halline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/HALLINE.jpg" width="450">""",
-    "Marcio": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARCIO.png" width="450">""",
-    "Maria Alice": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARIA%20ALICE%20-%20DP.jpg" width="450">""",
-    "Ronaldo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/RONALDO.png" width="450">""",
-    "Victor": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/VICTOR.jpg" width="450">""",
-    "Robson": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/acel%20assinaturas.png" width="450">"""
-}
-
-# ================================
-# ASSINATURA AUTOMÁTICA POR USUÁRIO
-# ================================
-ASSINATURA_USUARIO = {
-    "gabryell@acelnet.com.br": ASSINATURAS["Leonardo"],
-    "marcio@acelnet.com.br": ASSINATURAS["Marcio"],
-    "leonardo@acelnet.com.br": ASSINATURAS["Leonardo"],
-    "victor@acelnet.com.br": ASSINATURAS["Victor"],
-    "erika@acelnet.com.br": ASSINATURAS["Erika"],
-    "caroline@acelnet.com.br": ASSINATURAS["Caroline"],
-    "halline@acelnet.com.br": ASSINATURAS["Halline"],
-    "mariaalice@acelnet.com.br": ASSINATURAS["Maria Alice"],
-    "ronaldo@acelnet.com.br": ASSINATURAS["Ronaldo"],
-    "robson@acelnet.com.br": ASSINATURAS["Robson"]
-}
-
-assinatura_html = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
 
 # ================================
 # MENSAGEM / ENVIO
 # ================================
-email_user = st.text_input("Seu e-mail (Skymail)", st.session_state.usuario)
+email_user = st.text_input("Seu e-mail (Skymail)")
 email_pass = st.text_input("Sua senha", type="password")
 
 uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
@@ -189,13 +105,12 @@ def converter_para_html(texto):
     return html
 
 corpo_base = converter_para_html(texto_puro)
-corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
 
 st.subheader("📌 HTML gerado")
-st.code(corpo_preview, language="html")
+st.code(corpo_base, language="html")
 
 st.subheader("🔎 Prévia formatada")
-st.markdown(f"<div class='box'>{corpo_preview}</div>", unsafe_allow_html=True)
+st.markdown(f"<div class='box'>{corpo_base}</div>", unsafe_allow_html=True)
 
 pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
 modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
@@ -216,14 +131,14 @@ if uploaded_file is not None:
         for _, row in df.head(5).iterrows():
             responsavel = str(row["RESPONSAVEL"])
             emails = str(row["E-MAIL"]).replace(";", "-").split("-")
-            for e in emails:
-                e = e.strip()
-                if "@" in e:
-                    assunto_p = assunto.replace("{{responsavel}}", responsavel)
-                    corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                    corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
-                    destino = email_user if modo_teste else e
-                    preview.append({"Para": destino, "Assunto": assunto_p, "Corpo": corpo_p})
+            emails = [e.strip() for e in emails if "@" in e]
+            if emails:
+                destino = emails[0]
+                copias = emails[1:]
+                assunto_p = assunto.replace("{{responsavel}}", responsavel)
+                corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
+                destino_final = email_user if modo_teste else destino
+                preview.append({"Para": destino_final, "Cc": ", ".join(copias), "Assunto": assunto_p, "Corpo": corpo_p})
         st.table(preview)
 
         if st.button("🚀 Enviar todos os e-mails"):
@@ -231,34 +146,22 @@ if uploaded_file is not None:
             for _, row in df.iterrows():
                 responsavel = str(row["RESPONSAVEL"])
                 emails = str(row["E-MAIL"]).replace(";", "-").split("-")
-                for e in emails:
-                    e = e.strip()
-                    if "@" not in e:
-                        continue
-                    assunto_p = assunto.replace("{{responsavel}}", responsavel)
-                    corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                    corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
-                    destino = email_user if modo_teste else e
-                    try:
-                        enviar_email(email_user, email_pass, destino, assunto_p, corpo_p)
-                        enviados += 1
-                        st.write(f"✅ Enviado: {destino}")
-                        time.sleep(pausa)
-                    except Exception as ex:
-                        st.write(f"⚠️ Erro com {e}: {ex}")
+                emails = [e.strip() for e in emails if "@" in e]
+                if not emails:
+                    continue
+                destino = emails[0]
+                copias = emails[1:]
+                assunto_p = assunto.replace("{{responsavel}}", responsavel)
+                corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
+                destino_final = email_user if modo_teste else destino
+                copias_final = [] if modo_teste else copias
+                try:
+                    enviar_email(email_user, email_pass, destino_final, copias_final, assunto_p, corpo_p)
+                    enviados += 1
+                    st.write(f"✅ Enviado: {destino_final} (Cc: {', '.join(copias_final)})")
+                    time.sleep(pausa)
+                except Exception as ex:
+                    st.write(f"⚠️ Erro com {destino_final}: {ex}")
             st.success(f"Finalizado. Total enviados: {enviados}")
     else:
         st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
-
-# ================================
-# PAINEL ADMINISTRATIVO (somente admins)
-# ================================
-ADMINS = [
-    "gabryell@acelnet.com.br",
-    "marcio@acelnet.com.br",
-    "leonardo@acelnet.com.br",
-    "victor@acelnet.com.br"
-]
-
-if st.session_state.usuario in ADMINS:
-    st
