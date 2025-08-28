@@ -1,10 +1,10 @@
-# emails.py — ACEL | Envio Automático de E-mails + Aba de Certificados
+# emails.py — ACEL | Envio Automático de E-mails + Aba de Assinaturas
 # ---------------------------------------------------------------
-# Requisitos: streamlit, pandas, openpyxl (para .xlsx)
-# Execução:   streamlit run emails.py
+# Execução: streamlit run emails.py
 
-import os, re, json, time, smtplib, hashlib
+import os, re, json, time, smtplib, base64, hashlib
 import pandas as pd
+from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import streamlit as st
@@ -16,12 +16,6 @@ SMTP_HOST = "smtp.skymail.net.br"
 SMTP_PORT = 465  # SSL/TLS
 
 def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo_html):
-    """
-    Envia um único e-mail com:
-      - To: primeiro destinatário (string)
-      - Cc: demais destinatários (lista)
-      - Bcc: lista opcional (não aparece no cabeçalho)
-    """
     msg = MIMEMultipart("alternative")
     msg["From"] = email_user
     msg["To"] = para
@@ -30,9 +24,7 @@ def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo
     msg["Subject"] = assunto
     msg.attach(MIMEText(corpo_html, "html"))
 
-    # Todos os destinatários que receberão o e-mail
     dest_all = [para] + cc_list + bcc_list
-
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
         server.login(email_user, email_pass)
         server.sendmail(email_user, dest_all, msg.as_string())
@@ -70,10 +62,6 @@ st.markdown("""
 .stSlider > div > div > div { background:#1E3A8A; }
 h2,h3,.stMarkdown { color:#1E3A8A; }
 .box { background:#F3F6FF; border:1px solid #D9E2FF; border-radius:12px; padding:16px; }
-.tab-card { background:rgba(30,58,138,0.06); border:1px solid #D9E2FF; border-radius:12px; padding:18px; }
-.badge { display:inline-block; padding:4px 8px; background:#e2e8f0; border-radius:6px; font-size:12px; color:#0f172a; }
-.status-ok { color: #15803d; font-weight: 700; }
-.status-err { color: #b91c1c; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,7 +77,7 @@ st.markdown("""
 # ================================
 # TABS
 # ================================
-aba_envio, aba_certificados = st.tabs(["📧 Envio de E-mails", "🔑 Certificados"])
+aba_envio, aba_assinaturas = st.tabs(["📧 Envio de E-mails", "🖊️ Assinaturas"])
 
 # ================================
 # ASSINATURAS (catálogo)
@@ -122,44 +110,32 @@ ASSINATURA_USUARIO = {
 # FUNÇÕES AUXILIARES
 # ================================
 def converter_para_html(texto):
-    """
-    Converte marcações:
-      **negrito**  -> <b>...</b>
-      ##vermelho## -> <span style='color:red'>...</span>
-    """
     linhas = texto.split("\n")
     html = ""
     for linha in linhas:
         linha = linha.strip()
         if not linha:
             continue
-        # corrigido: escapar * e #, lazy match
         linha = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha)
         linha = re.sub(r"##(.+?)##", r"<span style='color:red;'>\1</span>", linha)
         html += f"<p>{linha}</p>\n"
     return html
 
 def parse_multiplos_emails(celula):
-    """
-    Aceita separadores ; , espaço ou vírgula.
-    Retorna (to, cc_list) — primeiro e-mail é 'Para', demais vão em Cc.
-    """
     bruto = str(celula or "")
     partes = [e.strip() for e in re.split(r"[;,\s]+", bruto) if e and "@" in e]
     if not partes:
         return None, []
     return partes[0], partes[1:]
 
-def safe_filename(base_name: str) -> str:
-    """Gera nome seguro para gravar certificado por usuário."""
-    slug = re.sub(r"[^a-zA-Z0-9_.-]", "_", base_name)
-    return slug[:80]
-
-def usuario_hash(email: str) -> str:
-    return hashlib.sha256((email or "").encode("utf-8")).hexdigest()[:16]
+def img_to_data_uri(file):
+    b = file.read()
+    mime = file.type if hasattr(file, "type") and file.type else "image/png"
+    b64 = base64.b64encode(b).decode("utf-8")
+    return f"<img src='data:{mime};base64,{b64}' width='450'>"
 
 # ================================
-# LOGIN (no topo da aba de Envio)
+# LOGIN (aba de Envio)
 # ================================
 with aba_envio:
     if not st.session_state.logged_in:
@@ -190,30 +166,13 @@ with aba_envio:
         st.stop()
 
 # ================================
-# CONTEÚDO ABAS
+# CONTEÚDO ABA ENVIO
 # ================================
-assinatura_html = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
-
 with aba_envio:
     st.markdown("<h2>📧 Envio Automático de E-mails</h2>", unsafe_allow_html=True)
 
-    with st.expander("ℹ️ Como usar o sistema", expanded=False):
-        st.markdown("""
-**Formatação de texto (conversor automático):**
-- **negrito** → escreva entre duas estrelas: **assim**
-- ##vermelho## → escreva entre hashtags duplas: ##assim##
-
-**Planilha**
-- Colunas exigidas: **E-MAIL** e **RESPONSAVEL** (maiúsculas; o app normaliza).
-- Vários e-mails na mesma célula: separe por **;** ou **,** ou espaço.
-
-**Envio**
-- **Modo Teste**: envia só para seu e-mail (seguro para validar).
-- Preview mostra os 5 primeiros antes do disparo.
-
-**Assinaturas**
-- Sua assinatura é vinculada ao login e será adicionada automaticamente.
-""")
+    assinatura_padrao = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
+    assinatura_html = st.session_state.get("assinatura_html", assinatura_padrao)
 
     colA, colB = st.columns([1,1])
     with colA:
@@ -297,7 +256,7 @@ Equipe ACEL
                         try:
                             enviar_email(email_user, email_pass, destino_para, destino_cc, destino_bcc, assunto_p, corpo_p)
                             enviados += 1
-                            st.write(f"✅ Enviado: {destino_para} " + (f"(Cc: {', '.join(destino_cc)})" if destino_cc else ""))
+                            st.write(f"✅ Enviado: {destino_para}")
                             time.sleep(pausa)
                         except Exception as ex:
                             falhas += 1
@@ -308,88 +267,59 @@ Equipe ACEL
             st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
 
 # ================================
-# ABA CERTIFICADOS
+# CONTEÚDO ABA ASSINATURAS
 # ================================
-with aba_certificados:
-    st.markdown("<h2>🔑 Gerenciamento de Certificados</h2>", unsafe_allow_html=True)
+with aba_assinaturas:
+    st.markdown("<h2>🖊️ Assinaturas</h2>", unsafe_allow_html=True)
 
-    st.markdown("""
-Divida pensada para armazenar/validar **certificado digital** (ex.: `.pfx`/`.p12`) e **senha**,
-facilitando futuras integrações (ex.: NFSe).
-""")
+    assinatura_padrao = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
 
-    # Diretório de certificados por usuário
-    CERT_DIR = ".certs"
-    os.makedirs(CERT_DIR, exist_ok=True)
+    tab_catalogo, tab_upload, tab_url = st.tabs(["📚 Catálogo", "📤 Upload", "🔗 URL"])
 
-    user_email = st.session_state.usuario or "desconhecido@acelnet.com.br"
-    user_key = usuario_hash(user_email)
+    with tab_catalogo:
+        nomes = list(ASSINATURAS.keys())
+        escolha = st.selectbox("Escolha do catálogo", nomes, index=0)
+        html_escolha = ASSINATURAS[escolha]
+        st.markdown(html_escolha, unsafe_allow_html=True)
+        if st.button("Usar esta assinatura"):
+            st.session_state.assinatura_html = html_escolha
+            st.success("Assinatura selecionada!")
 
-    cert_file = st.file_uploader("Selecione o certificado (.pfx / .p12)", type=["pfx", "p12"], key="cert_uploader")
-    cert_pass = st.text_input("Senha do certificado", type="password", key="cert_senha")
+    with tab_upload:
+        up = st.file_uploader("Envie uma imagem (PNG/JPG)", type=["png","jpg","jpeg"])
+        if up:
+            data_uri = img_to_data_uri(up)
+            st.markdown(data_uri, unsafe_allow_html=True)
+            if st.button("Usar a imagem enviada"):
+                st.session_state.assinatura_html = data_uri
+                st.success("Assinatura personalizada definida!")
 
-    col1, col2 = st.columns([1,1])
-    with col1:
-        if st.button("💾 Salvar certificado localmente"):
-            if not cert_file or not cert_pass:
-                st.error("Envie o arquivo de certificado e informe a senha.")
-            else:
-                filename = safe_filename(f"{user_key}_{cert_file.name}")
-                save_path = os.path.join(CERT_DIR, filename)
-                with open(save_path, "wb") as f:
-                    f.write(cert_file.getbuffer())
-                # Armazena metadata mínima (NÃO salvar a senha em disco)
-                meta = {
-                    "usuario": user_email,
-                    "arquivo": filename,
-                    "path": save_path,
-                    "tem_senha": bool(cert_pass)
-                }
-                with open(os.path.join(CERT_DIR, f"{user_key}.json"), "w", encoding="utf-8") as jf:
-                    json.dump(meta, jf, ensure_ascii=False, indent=2)
-                # Senha só na sessão
-                st.session_state[f"cert_pass_{user_key}"] = cert_pass
-                st.success(f"✅ Certificado salvo: {filename}")
-                st.info("A senha foi mantida apenas em memória de sessão (não gravamos em disco).")
+    with tab_url:
+        url = st.text_input("Cole o URL da imagem (https://...)", "")
+        if url:
+            prev = f"<img src='{url}' width='450'>"
+            st.markdown(prev, unsafe_allow_html=True)
+        if st.button("Usar a imagem do URL"):
+            if url:
+                st.session_state.assinatura_html = f"<img src='{url}' width='450'>"
+                st.success("Assinatura via URL definida!")
 
-    with col2:
-        if st.button("🗑️ Remover certificado salvo"):
-            meta_path = os.path.join(CERT_DIR, f"{user_key}.json")
-            if os.path.exists(meta_path):
-                with open(meta_path, "r", encoding="utf-8") as jf:
-                    meta = json.load(jf)
-                try:
-                    if os.path.exists(meta.get("path", "")):
-                        os.remove(meta["path"])
-                except Exception:
-                    pass
-                os.remove(meta_path)
-                st.session_state.pop(f"cert_pass_{user_key}", None)
-                st.success("✅ Certificado removido.")
-            else:
-                st.info("Não há certificado salvo para este usuário.")
-
-    # Mostrar status
-    meta_path = os.path.join(CERT_DIR, f"{user_key}.json")
-    if os.path.exists(meta_path):
-        with open(meta_path, "r", encoding="utf-8") as jf:
-            meta = json.load(jf)
-        st.markdown(f"""
-**Status:** <span class="status-ok">Certificado presente</span>  
-**Usuário:** `{meta.get('usuario')}`  
-**Arquivo:** `{meta.get('arquivo')}`  
-**Senha em sessão:** `{"Sim" if st.session_state.get(f"cert_pass_{user_key}") else "Não"}`
-""", unsafe_allow_html=True)
+    st.divider()
+    atual = st.session_state.get("assinatura_html", assinatura_padrao)
+    st.markdown("**Assinatura em uso (pré-visualização):**")
+    if atual:
+        st.markdown(atual, unsafe_allow_html=True)
     else:
-        st.markdown('**Status:** <span class="status-err">Nenhum certificado salvo</span>', unsafe_allow_html=True)
+        st.info("Nenhuma assinatura definida.")
+
+    if st.button("Reverter para assinatura padrão do meu usuário"):
+        st.session_state.assinatura_html = assinatura_padrao
+        st.success("Assinatura padrão aplicada!")
 
 # ================================
 # PAINEL ADMIN (opcional)
 # ================================
-ADMINS = [
-    "gabryell@acelnet.com.br", "marcio@acelnet.com.br",
-    "leonardo@acelnet.com.br", "victor@acelnet.com.br"
-]
+ADMINS = ["gabryell@acelnet.com.br", "marcio@acelnet.com.br", "leonardo@acelnet.com.br", "victor@acelnet.com.br"]
 if st.session_state.usuario in ADMINS:
     with st.expander("🛠️ Painel Administrativo"):
-        st.write("Recursos futuros (logs de envio, limites, etc.)")
+        st.write("Recursos futuros (logs, limites, etc.)")
