@@ -211,9 +211,11 @@ with aba_envio:
                     try:
                         enviar_email(email_user, email_pass, destino_para, destino_cc, destino_bcc, assunto_p, corpo_p)
                         enviados += 1
+                        st.write(f"✅ Enviado: {destino_para}" + (f" | Cc: {', '.join(destino_cc)}" if destino_cc else ""))
                         time.sleep(pausa)
-                    except:
+                    except Exception as ex:
                         falhas += 1
+                        st.write(f"⚠️ Erro com {destino_para}: {ex}")
                 st.success(f"Finalizado. Total enviados: {enviados} | Falhas: {falhas}")
         else:
             st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
