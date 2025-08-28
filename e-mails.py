@@ -1,10 +1,9 @@
-# emails.py — ACEL | Envio Automático de E-mails + Aba de Assinaturas
+# emails.py — ACEL | Envio Automático de E-mails
 # ---------------------------------------------------------------
 # Execução: streamlit run emails.py
 
-import os, re, json, time, smtplib, base64, hashlib
+import os, re, json, time, smtplib, base64
 import pandas as pd
-from io import BytesIO
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import streamlit as st
@@ -77,7 +76,7 @@ st.markdown("""
 # ================================
 # TABS
 # ================================
-aba_envio, aba_assinaturas = st.tabs(["📧 Envio de E-mails", "🖊️ Assinaturas"])
+aba_envio, aba_assinaturas, aba_ajuda = st.tabs(["📧 Envio de E-mails", "🖊️ Assinaturas", "ℹ️ Como usar o sistema"])
 
 # ================================
 # ASSINATURAS (catálogo)
@@ -135,7 +134,7 @@ def img_to_data_uri(file):
     return f"<img src='data:{mime};base64,{b64}' width='450'>"
 
 # ================================
-# LOGIN (aba de Envio)
+# ABA ENVIO
 # ================================
 with aba_envio:
     if not st.session_state.logged_in:
@@ -165,10 +164,6 @@ with aba_envio:
                     st.error("❌ E-mail ou senha inválidos.")
         st.stop()
 
-# ================================
-# CONTEÚDO ABA ENVIO
-# ================================
-with aba_envio:
     st.markdown("<h2>📧 Envio Automático de E-mails</h2>", unsafe_allow_html=True)
 
     assinatura_padrao = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
@@ -181,22 +176,13 @@ with aba_envio:
         assunto = st.text_input("Assunto do e-mail", "Comunicado importante - {{responsavel}}")
         pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
         modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
-
-        bcc_raw = st.text_input("BCC (opcional) — separe por ; ou ,", "")
+        bcc_raw = st.text_input("BCC (opcional)", "")
         bcc_list = [e.strip() for e in re.split(r"[;,\s]+", bcc_raw) if "@" in e]
 
     with colB:
         uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
-        st.subheader("Corpo do e-mail (digite em texto simples)")
-        texto_puro = st.text_area("Digite aqui:", """Bom dia,
-
-Prezados(as),
-
-A Acel tem como prioridade ##estar sempre ao lado de seus clientes##, adotando as melhores práticas para simplificar a rotina e assegurar segurança em todas as etapas dos processos contábeis e fiscais.
-
-Atenciosamente,
-Equipe ACEL
-""", height=260)
+        st.subheader("Corpo do e-mail")
+        texto_puro = st.text_area("Digite aqui:", "Bom dia,\n\nPrezados(as),\n\n...", height=260)
 
     corpo_base = converter_para_html(texto_puro)
     corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
@@ -206,76 +192,40 @@ Equipe ACEL
     st.markdown(f"<div class='box'>{corpo_preview}</div>", unsafe_allow_html=True)
 
     if uploaded_file is not None:
-        if uploaded_file.name.endswith(".xlsx"):
-            df = pd.read_excel(uploaded_file, header=0)
-        else:
-            df = pd.read_csv(uploaded_file, header=0)
-
+        df = pd.read_excel(uploaded_file, header=0) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file, header=0)
         df.columns = df.columns.str.strip().str.upper()
-        st.subheader("Prévia dos dados carregados")
-        st.write(df.head())
-
         if "E-MAIL" in df.columns and "RESPONSAVEL" in df.columns:
-            st.subheader("📌 Preview dos primeiros 5 envios")
-            preview_rows = []
-            for _, row in df.head(5).iterrows():
-                responsavel = str(row["RESPONSAVEL"])
-                to, cc = parse_multiplos_emails(row["E-MAIL"])
-                if not to:
-                    continue
-                assunto_p = assunto.replace("{{responsavel}}", responsavel)
-                corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
-                destino_para = email_user if modo_teste else to
-                destino_cc = [] if modo_teste else cc
-                preview_rows.append({
-                    "Para": destino_para,
-                    "Cc": ", ".join(destino_cc) if destino_cc else "-",
-                    "Assunto": assunto_p
-                })
-            st.table(preview_rows)
-
             if st.button("🚀 Enviar todos os e-mails"):
-                if not email_user or not email_pass:
-                    st.error("Informe seu e-mail e senha do Skymail.")
-                else:
-                    enviados, falhas = 0, 0
-                    for _, row in df.iterrows():
-                        responsavel = str(row["RESPONSAVEL"])
-                        to, cc = parse_multiplos_emails(row["E-MAIL"])
-                        if not to:
-                            continue
-                        assunto_p = assunto.replace("{{responsavel}}", responsavel)
-                        corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
-                        corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
-
-                        destino_para = email_user if modo_teste else to
-                        destino_cc = [] if modo_teste else cc
-                        destino_bcc = [] if modo_teste else bcc_list
-
-                        try:
-                            enviar_email(email_user, email_pass, destino_para, destino_cc, destino_bcc, assunto_p, corpo_p)
-                            enviados += 1
-                            st.write(f"✅ Enviado: {destino_para}")
-                            time.sleep(pausa)
-                        except Exception as ex:
-                            falhas += 1
-                            st.write(f"⚠️ Erro com {to}: {ex}")
-
-                    st.success(f"Finalizado. Total enviados: {enviados} | Falhas: {falhas}")
+                enviados, falhas = 0, 0
+                for _, row in df.iterrows():
+                    responsavel = str(row["RESPONSAVEL"])
+                    to, cc = parse_multiplos_emails(row["E-MAIL"])
+                    if not to:
+                        continue
+                    assunto_p = assunto.replace("{{responsavel}}", responsavel)
+                    corpo_p = corpo_base.replace("{{responsavel}}", responsavel)
+                    corpo_p = corpo_p + ("<hr>" + assinatura_html if assinatura_html else "")
+                    destino_para = email_user if modo_teste else to
+                    destino_cc = [] if modo_teste else cc
+                    destino_bcc = [] if modo_teste else bcc_list
+                    try:
+                        enviar_email(email_user, email_pass, destino_para, destino_cc, destino_bcc, assunto_p, corpo_p)
+                        enviados += 1
+                        time.sleep(pausa)
+                    except:
+                        falhas += 1
+                st.success(f"Finalizado. Total enviados: {enviados} | Falhas: {falhas}")
         else:
             st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
 
 # ================================
-# CONTEÚDO ABA ASSINATURAS
+# ABA ASSINATURAS
 # ================================
 with aba_assinaturas:
     st.markdown("<h2>🖊️ Assinaturas</h2>", unsafe_allow_html=True)
-
     assinatura_padrao = ASSINATURA_USUARIO.get(st.session_state.usuario, "")
 
     tab_catalogo, tab_upload, tab_url = st.tabs(["📚 Catálogo", "📤 Upload", "🔗 URL"])
-
     with tab_catalogo:
         nomes = list(ASSINATURAS.keys())
         escolha = st.selectbox("Escolha do catálogo", nomes, index=0)
@@ -304,22 +254,36 @@ with aba_assinaturas:
                 st.session_state.assinatura_html = f"<img src='{url}' width='450'>"
                 st.success("Assinatura via URL definida!")
 
-    st.divider()
     atual = st.session_state.get("assinatura_html", assinatura_padrao)
-    st.markdown("**Assinatura em uso (pré-visualização):**")
+    st.markdown("**Assinatura em uso:**")
     if atual:
         st.markdown(atual, unsafe_allow_html=True)
-    else:
-        st.info("Nenhuma assinatura definida.")
-
-    if st.button("Reverter para assinatura padrão do meu usuário"):
+    if st.button("Reverter para assinatura padrão"):
         st.session_state.assinatura_html = assinatura_padrao
         st.success("Assinatura padrão aplicada!")
 
 # ================================
-# PAINEL ADMIN (opcional)
+# ABA AJUDA
 # ================================
-ADMINS = ["gabryell@acelnet.com.br", "marcio@acelnet.com.br", "leonardo@acelnet.com.br", "victor@acelnet.com.br"]
-if st.session_state.usuario in ADMINS:
-    with st.expander("🛠️ Painel Administrativo"):
-        st.write("Recursos futuros (logs, limites, etc.)")
+with aba_ajuda:
+    st.markdown("<h2>ℹ️ Como usar o sistema</h2>", unsafe_allow_html=True)
+    st.markdown("""
+### 📝 Formatação do texto
+- **negrito** → escreva entre duas estrelas: **assim**  
+- ##vermelho## → escreva entre hashtags duplas: ##assim##
+
+### 📂 Planilha
+- Colunas obrigatórias: **E-MAIL** e **RESPONSAVEL**  
+- Vários e-mails na mesma célula → separe por ; , ou espaço  
+- O primeiro e-mail vira **Para**, os demais vão em **Cc**
+
+### ✉️ Envio
+- **Modo Teste** envia só para o seu e-mail  
+- Preview mostra os primeiros antes do envio  
+- Intervalo ajustável entre disparos
+
+### 🔏 Assinaturas
+- Cada usuário tem assinatura padrão vinculada  
+- Pode trocar no **catálogo**, enviar uma imagem ou usar uma URL  
+- Assinatura aparece no final do e-mail automaticamente
+""")
