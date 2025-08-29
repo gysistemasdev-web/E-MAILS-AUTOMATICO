@@ -85,7 +85,8 @@ ASSINATURAS = {
     "Leonardo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LEONARDO.png" width="450">""",
     "Erika": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/ERIKA%201.png" width="450">""",
     "Caroline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/CAROLINE.png" width="450">""",
-"Halline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/f7cbeee80b479c47cd3d09f8e4377c4b560dad2a/HALLINE.png" width="450">""",    "Marcio": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARCIO.png" width="450">""",
+    "Halline": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/f7cbeee80b479c47cd3d09f8e4377c4b560dad2a/HALLINE.png" width="450">""",
+    "Marcio": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARCIO.png" width="450">""",
     "Maria Alice": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/MARIA%20ALICE%20-%20DP.jpg" width="450">""",
     "Ronaldo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/RONALDO.png" width="450">""",
     "Victor": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/VICTOR.jpg" width="450">""",
@@ -193,6 +194,10 @@ with aba_envio:
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=0) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file, header=0)
         df.columns = df.columns.str.strip().str.upper()
+
+        st.subheader("📂 Prévia dos dados carregados")
+        st.write(df.head())  # mostra as 5 primeiras linhas
+
         if "E-MAIL" in df.columns and "RESPONSAVEL" in df.columns:
             if st.button("🚀 Enviar todos os e-mails"):
                 enviados, falhas = 0, 0
@@ -246,7 +251,7 @@ with aba_assinaturas:
                 st.success("Assinatura personalizada definida!")
 
     with tab_url:
-        url = st.text_input("Cole o URL da imagem (https://...)", "")
+        url = st.text_input("Cole o URL da imagem (https://...)")
         if url:
             prev = f"<img src='{url}' width='450'>"
             st.markdown(prev, unsafe_allow_html=True)
@@ -288,5 +293,3 @@ with aba_ajuda:
 - Pode trocar no **catálogo**, enviar uma imagem ou usar uma URL  
 - Assinatura aparece no final do e-mail automaticamente
 """)
-
-
