@@ -1,4 +1,4 @@
-# emails.py — ACEL | Envio Automático de E-mails (com prévias + CC Global)
+# emails.py — ACEL | Envio Automático de E-mails (com prévias + CC Global + Anexos)
 # Execução: streamlit run emails.py
 
 import os, re, json, time, smtplib, base64, shutil
@@ -6,6 +6,7 @@ import pandas as pd
 from json import JSONDecodeError
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 import streamlit as st
 
 # ================================
@@ -14,14 +15,29 @@ import streamlit as st
 SMTP_HOST = "smtp.skymail.net.br"
 SMTP_PORT = 465  # SSL/TLS
 
-def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo_html):
-    msg = MIMEMultipart("alternative")
+def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo_html, anexos=None):
+    msg = MIMEMultipart("mixed")  # mixed permite anexos
     msg["From"] = email_user
     msg["To"] = para
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
     msg["Subject"] = assunto
-    msg.attach(MIMEText(corpo_html, "html"))
+
+    # corpo do e-mail em HTML
+    corpo = MIMEMultipart("alternative")
+    corpo.attach(MIMEText(corpo_html, "html"))
+    msg.attach(corpo)
+
+    # anexos
+    if anexos:
+        for file in anexos:
+            try:
+                part = MIMEApplication(file.read(), Name=file.name)
+                part['Content-Disposition'] = f'attachment; filename="{file.name}"'
+                msg.attach(part)
+            except Exception as e:
+                print(f"Erro ao anexar {file.name}: {e}")
+
     dest_all = [para] + cc_list + bcc_list
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
         server.login(email_user, email_pass)
@@ -149,7 +165,7 @@ def img_to_data_uri(file):
     return f"<img src='data:{mime};base64,{b64}' width='450'>"
 
 # ================================
-# ABA ENVIO — com PRÉVIAS e CC Global
+# ABA ENVIO — com PRÉVIAS, CC Global e ANEXOS
 # ================================
 with aba_envio:
     # Login
@@ -202,6 +218,7 @@ with aba_envio:
 
     with colB:
         uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
+        anexos = st.file_uploader("Adicionar anexos (opcional)", type=None, accept_multiple_files=True)
         st.subheader("Corpo do e-mail")
         texto_puro = st.text_area("Digite aqui:", "Bom dia,\n\nPrezados(as),\n\n...", height=260)
 
@@ -236,7 +253,8 @@ with aba_envio:
                 preview_rows.append({
                     "Para": destino_para,
                     "Cc": ", ".join(destino_cc) if destino_cc else "-",
-                    "Assunto": assunto_p
+                    "Assunto": assunto_p,
+                    "Anexos": ", ".join([f.name for f in anexos]) if anexos else "-"
                 })
             st.table(preview_rows)
         else:
@@ -267,9 +285,9 @@ with aba_envio:
                 destino_bcc = [] if modo_teste else bcc_list
 
                 try:
-                    enviar_email(email_user, email_pass, destino_para, destino_cc, destino_bcc, assunto_p, corpo_p)
+                    enviar_email(email_user, email_pass, destino_para, destino_cc, destino_bcc, assunto_p, corpo_p, anexos=anexos)
                     enviados += 1
-                    st.write(f"✅ Enviado: {destino_para}" + (f" | Cc: {', '.join(destino_cc)}" if destino_cc else ""))
+                    st.write(f"✅ Enviado: {destino_para}" + (f" | Cc: {', '.join(destino_cc)}" if destino_cc else "") + (f" | Anexos: {', '.join([f.name for f in anexos])}" if anexos else ""))
                     time.sleep(pausa)
                 except Exception as ex:
                     falhas += 1
@@ -330,20 +348,4 @@ with aba_ajuda:
 - **negrito** → escreva entre duas estrelas: **assim**
 - ##vermelho## → escreva entre hashtags duplas: ##assim##
 
-### 📂 Planilha
-- Colunas obrigatórias: **E-MAIL** e **RESPONSAVEL**
-- Vários e-mails na mesma célula → separe por ; , ou espaço
-- O primeiro e-mail vira **Para**, os demais vão em **Cc**
-
-### ✉️ Envio
-- **Modo Teste** envia só para o seu e-mail
-- Prévia mostra as 5 primeiras linhas da planilha e os 5 primeiros envios
-- Intervalo ajustável entre disparos
-- **CC Global**: todos os envios incluem esse e-mail em cópia
-- **BCC**: cópia oculta opcional em todos os envios
-
-### 🖊️ Assinaturas
-- Cada usuário tem assinatura padrão vinculada
-- Pode trocar no catálogo, enviar uma imagem ou usar uma URL
-- Assinatura aparece no final do e-mail automaticamente
-""")
+###
