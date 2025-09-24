@@ -348,4 +348,23 @@ with aba_ajuda:
 - **negrito** → escreva entre duas estrelas: **assim**
 - ##vermelho## → escreva entre hashtags duplas: ##assim##
 
-###
+### 📂 Planilha
+- Colunas obrigatórias: **E-MAIL** e **RESPONSAVEL**
+- Vários e-mails na mesma célula → separe por ; , ou espaço
+- O primeiro e-mail vira **Para**, os demais vão em **Cc**
+
+### ✉️ Envio
+- **Modo Teste** envia só para o seu e-mail
+- Prévia mostra as 5 primeiras linhas da planilha e os 5 primeiros envios
+- Intervalo ajustável entre disparos
+- **CC Global**: todos os envios incluem esse e-mail em cópia
+- **BCC**: cópia oculta opcional em todos os envios
+- **Anexos**: todos os anexos carregados vão para todos os e-mails
+
+### 🖊️ Assinaturas
+- Cada usuário tem assinatura padrão vinculada
+- Pode trocar no catálogo, enviar uma imagem ou usar uma URL
+- Assinatura aparece no final do e-mail automaticamente
+""")
+
+
