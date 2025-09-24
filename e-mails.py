@@ -1,4 +1,4 @@
-# emails.py — ACEL | Envio Automático de E-mails (com prévias + CC Global + Anexos)
+# emails.py — ACEL | Envio Automático de E-mails (com prévias + CC Global + Anexos + Formatações avançadas)
 # Execução: streamlit run emails.py
 
 import os, re, json, time, smtplib, base64, shutil
@@ -23,16 +23,14 @@ def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo
         msg["Cc"] = ", ".join(cc_list)
     msg["Subject"] = assunto
 
-    # corpo do e-mail em HTML
     corpo = MIMEMultipart("alternative")
     corpo.attach(MIMEText(corpo_html, "html"))
     msg.attach(corpo)
 
-    # anexos
     if anexos:
         for file in anexos:
             try:
-                file.seek(0)  # garante leitura desde o início
+                file.seek(0)
                 data = file.read()
                 part = MIMEApplication(data, Name=file.name)
                 part.add_header('Content-Disposition', 'attachment', filename=file.name)
@@ -46,7 +44,7 @@ def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo
         server.sendmail(email_user, dest_all, msg.as_string())
 
 # ================================
-# LOGIN / REGISTRO (robusto)
+# LOGIN / REGISTRO
 # ================================
 USERS_FILE = "usuarios.json"
 
@@ -112,7 +110,7 @@ st.markdown("""
 aba_envio, aba_assinaturas, aba_ajuda = st.tabs(["📧 Envio de E-mails", "🖊️ Assinaturas", "ℹ️ Como usar o sistema"])
 
 # ================================
-# ASSINATURAS (catálogo)
+# ASSINATURAS
 # ================================
 ASSINATURAS = {
     "Leonardo": """<img src="https://raw.githubusercontent.com/gysistemasdev-web/E-MAILS-AUTOMATICO/main/LEONARDO.png" width="450">""",
@@ -137,22 +135,86 @@ ASSINATURA_USUARIO = {
     "ronaldo@acelnet.com.br": ASSINATURAS["Ronaldo"],
     "robson@acelnet.com.br": ASSINATURAS["Robson"]
 }
-
 # ================================
-# FUNÇÕES AUXILIARES
+# TEXTO → HTML (formatações avançadas)
 # ================================
 def converter_para_html(texto):
     linhas = texto.split("\n")
     html = ""
+    in_ul, in_ol = False, False
+
     for linha in linhas:
         linha = linha.strip()
         if not linha:
+            if in_ul:
+                html += "</ul>\n"
+                in_ul = False
+            if in_ol:
+                html += "</ol>\n"
+                in_ol = False
             continue
-        linha = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha)
+
+        # formatações inline
+        linha = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", linha)      # negrito
+        linha = re.sub(r"//(.+?)//", r"<i>\1</i>", linha)          # itálico
+        linha = re.sub(r"__(.+?)__", r"<u>\1</u>", linha)          # sublinhado
+        linha = re.sub(r"~~(.+?)~~", r"<s>\1</s>", linha)          # riscado
         linha = re.sub(r"##(.+?)##", r"<span style='color:red;'>\1</span>", linha)
+        linha = re.sub(r"@@(.+?)@@", r"<span style='background:yellow;'>\1</span>", linha)
+        linha = re.sub(r"%%(.+?)%%", r"<span style='color:blue;'>\1</span>", linha)
+        linha = re.sub(r"(https?://\S+)", r"<a href='\1' target='_blank'>\1</a>", linha)
+
+        # cabeçalhos
+        if linha.startswith("### "):
+            html += f"<h3>{linha[4:]}</h3>\n"
+            continue
+        elif linha.startswith("## "):
+            html += f"<h2>{linha[3:]}</h2>\n"
+            continue
+        elif linha.startswith("# "):
+            html += f"<h1>{linha[2:]}</h1>\n"
+            continue
+
+        # citações
+        if linha.startswith("> "):
+            html += f"<blockquote>{linha[2:]}</blockquote>\n"
+            continue
+
+        # separador
+        if linha == "---":
+            html += "<hr>\n"
+            continue
+
+        # listas
+        if re.match(r"^\d+\.\s", linha):
+            if not in_ol:
+                html += "<ol>\n"
+                in_ol = True
+            html += f"<li>{linha[3:]}</li>\n"
+            continue
+        elif linha.startswith("- "):
+            if not in_ul:
+                html += "<ul>\n"
+                in_ul = True
+            html += f"<li>{linha[2:]}</li>\n"
+            continue
+        else:
+            if in_ul:
+                html += "</ul>\n"
+                in_ul = False
+            if in_ol:
+                html += "</ol>\n"
+                in_ol = False
+
         html += f"<p>{linha}</p>\n"
+
+    if in_ul: html += "</ul>\n"
+    if in_ol: html += "</ol>\n"
     return html
 
+# ================================
+# AUXILIARES
+# ================================
 def parse_multiplos_emails(celula):
     bruto = str(celula or "")
     partes = [e.strip() for e in re.split(r"[;,\s]+", bruto) if e and "@" in e]
@@ -167,10 +229,9 @@ def img_to_data_uri(file):
     return f"<img src='data:{mime};base64,{b64}' width='450'>"
 
 # ================================
-# ABA ENVIO — com PRÉVIAS, CC Global e ANEXOS
+# ABA ENVIO
 # ================================
 with aba_envio:
-    # Login
     if not st.session_state.logged_in:
         st.title("🔒 Login - Sistema de Envio ACEL")
         escolha = st.radio("Selecione:", ["Login", "Registrar"], horizontal=True)
@@ -221,7 +282,11 @@ with aba_envio:
         uploaded_file = st.file_uploader("Carregue a planilha (.xlsx ou .csv)", type=["xlsx","csv"])
         anexos = st.file_uploader("Adicionar anexos (opcional)", type=None, accept_multiple_files=True)
         st.subheader("Corpo do e-mail")
-        texto_puro = st.text_area("Digite aqui:", "Bom dia,\n\nPrezados(as),\n\n...", height=260)
+        texto_puro = st.text_area(
+            "Digite aqui:",
+            "Bom dia,\n\nPrezados(as),\n\nSegue comunicado importante.\n\nAtenciosamente,",
+            height=260
+        )
 
     corpo_base = converter_para_html(texto_puro)
     corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
@@ -291,7 +356,6 @@ with aba_envio:
                     falhas += 1
                     st.write(f"⚠️ Erro com {destino_para}: {ex}")
             st.success(f"Finalizado. Total enviados: {enviados} | Falhas: {falhas}")
-
 # ================================
 # ABA ASSINATURAS
 # ================================
@@ -342,9 +406,26 @@ with aba_assinaturas:
 with aba_ajuda:
     st.markdown("<h2>ℹ️ Como usar o sistema</h2>", unsafe_allow_html=True)
     st.markdown("""
-### 📝 Formatação do texto
-- **negrito** → escreva entre duas estrelas: **assim**
-- ##vermelho## → escreva entre hashtags duplas: ##assim##
+### 📝 Formatação disponível
+- **negrito** → `**texto**`
+- //itálico// → `//texto//`
+- __sublinhado__ → `__texto__`
+- ~~riscado~~ → `~~texto~~`
+- ##vermelho## → `##texto##`
+- @@amarelo@@ → `@@texto@@`
+- %%azul%% → `%%texto%%`
+
+### 📋 Estrutura
+- `- item` → lista com bolinhas
+- `1. item` → lista numerada
+- `> texto` → citação destacada
+- `---` → linha separadora
+- `# Título` → título grande
+- `## Subtítulo` → título médio
+- `### Sub-subtítulo` → título pequeno
+
+### 🔗 Links
+Qualquer link que começar com http/https vira clicável automaticamente.
 
 ### 📂 Planilha
 - Colunas obrigatórias: **E-MAIL** e **RESPONSAVEL**
@@ -363,4 +444,12 @@ with aba_ajuda:
 - Cada usuário tem assinatura padrão vinculada
 - Pode trocar no catálogo, enviar uma imagem ou usar uma URL
 - Assinatura aparece no final do e-mail automaticamente
+
+### 📌 Texto inicial
+- O editor já começa com:  
+  `Bom dia,`  
+  `Prezados(as),`  
+  `Segue comunicado importante.`  
+  `Atenciosamente,`  
+  para manter sempre o formato de e-mail padrão.
 """)
