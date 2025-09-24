@@ -32,8 +32,10 @@ def enviar_email(email_user, email_pass, para, cc_list, bcc_list, assunto, corpo
     if anexos:
         for file in anexos:
             try:
-                part = MIMEApplication(file.read(), Name=file.name)
-                part['Content-Disposition'] = f'attachment; filename="{file.name}"'
+                file.seek(0)  # garante leitura desde o início
+                data = file.read()
+                part = MIMEApplication(data, Name=file.name)
+                part.add_header('Content-Disposition', 'attachment', filename=file.name)
                 msg.attach(part)
             except Exception as e:
                 print(f"Erro ao anexar {file.name}: {e}")
@@ -209,7 +211,6 @@ with aba_envio:
         pausa = st.slider("Intervalo entre e-mails (segundos)", 0.5, 5.0, 1.0)
         modo_teste = st.checkbox("🔒 Modo Teste (enviar só para mim)", value=True)
 
-        # NOVOS CAMPOS
         cc_global_raw = st.text_input("CC Global (vai em todos os envios)", "")
         cc_global = [e.strip() for e in re.split(r"[;,\s]+", cc_global_raw) if "@" in e]
 
@@ -222,7 +223,6 @@ with aba_envio:
         st.subheader("Corpo do e-mail")
         texto_puro = st.text_area("Digite aqui:", "Bom dia,\n\nPrezados(as),\n\n...", height=260)
 
-    # Prévia do corpo
     corpo_base = converter_para_html(texto_puro)
     corpo_preview = corpo_base + ("<hr>" + assinatura_html if assinatura_html else "")
     st.subheader("📌 HTML gerado")
@@ -230,14 +230,13 @@ with aba_envio:
     st.subheader("🔎 Prévia formatada")
     st.markdown(f"<div class='box'>{corpo_preview}</div>", unsafe_allow_html=True)
 
-    # Ler planilha (se houver) e mostrar PRÉVIAS
     df = None
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=0) if uploaded_file.name.endswith(".xlsx") else pd.read_csv(uploaded_file, header=0)
         df.columns = df.columns.str.strip().str.upper()
 
         st.subheader("📂 Prévia dos dados carregados")
-        st.write(df.head())  # 5 primeiras linhas
+        st.write(df.head())
 
         if {"E-MAIL", "RESPONSAVEL"}.issubset(df.columns):
             st.subheader("📌 Preview dos primeiros 5 envios")
@@ -260,7 +259,6 @@ with aba_envio:
         else:
             st.error("A planilha precisa ter as colunas: E-MAIL e RESPONSAVEL")
 
-    # Botão SEMPRE visível
     enviar_click = st.button("🚀 Enviar todos os e-mails", use_container_width=True)
     if enviar_click:
         if not email_user or not email_pass:
@@ -366,5 +364,3 @@ with aba_ajuda:
 - Pode trocar no catálogo, enviar uma imagem ou usar uma URL
 - Assinatura aparece no final do e-mail automaticamente
 """)
-
-
